@@ -27,7 +27,18 @@ void q_free(queue_t *q)
 {
     /* TODO: How about freeing the list elements and the strings? */
     /* Free queue structure */
-    free(q);
+    list_ele_t *tmp;
+
+    if (q) {
+        while (q->head) {
+            if (q->head->value)
+                free(q->head->value);
+            tmp = q->head->next;
+            free(q->head);
+            q->head = tmp;
+        }
+        free(q);
+    }
 }
 
 /*
@@ -60,7 +71,8 @@ bool q_insert_head(queue_t *q, char *s)
 
     newh->next = q->head;
     q->head = newh;
-    q->tail = q->head;
+    if (!q->tail)  // When the first element inserted into queue...
+        q->tail = q->head;
     (q->size)++;
     return true;
 }
@@ -77,7 +89,28 @@ bool q_insert_tail(queue_t *q, char *s)
     /* TODO: You need to write the complete code for this function */
     /* Remember: It should operate in O(1) time */
     /* TODO: Remove the above comment when you are about to implement. */
-    return false;
+    if (!q)
+        return false;
+    list_ele_t *newt = malloc(sizeof(list_ele_t));
+    if (!newt)
+        return false;
+
+    newt->value = (char *) malloc(sizeof(char) * (strlen(s) + 1));
+    if (!newt->value) {
+        free(newt);
+        return false;
+    }
+
+    snprintf(newt->value, (strlen(s) + 1), "%s", s);
+
+    if (!q->head)  // trace-16-perf
+        q->head = newt;
+    else
+        q->tail->next = newt;
+    newt->next = NULL;
+    q->tail = newt;
+    (q->size)++;
+    return true;
 }
 
 /*
@@ -94,18 +127,20 @@ bool q_remove_head(queue_t *q, char *sp, size_t bufsize)
     /* TODO: Remove the above comment when you are about to implement. */
     if (!q || !q->head)
         return false;
-    if (strlen(q->head->value) + 1 > bufsize)
-        return false;
+    // if (strlen(q->head->value) + 1 > bufsize) //trace-06-perf
+    //     return false;
 
     list_ele_t *tmp = q->head;
     snprintf(sp, bufsize, "%s", tmp->value);
 
     q->head = q->head->next;
-    q->tail = q->head;
     (q->size)--;
 
     free(tmp->value);
     free(tmp);  // Must be free after q->head has assigned a new address
+
+    if (!q->head)  // When there is only one element in the queue
+        q->tail = q->head;
 
     return true;
 }
@@ -119,7 +154,9 @@ int q_size(queue_t *q)
     /* TODO: You need to write the code for this function */
     /* Remember: It should operate in O(1) time */
     /* TODO: Remove the above comment when you are about to implement. */
-    return q->size;
+    if (q)
+        return q->size;
+    return 0;
 }
 
 /*
@@ -133,6 +170,24 @@ void q_reverse(queue_t *q)
 {
     /* TODO: You need to write the code for this function */
     /* TODO: Remove the above comment when you are about to implement. */
+    list_ele_t *pre, *tmp, *nxt;
+
+    if (q && q->head && q->tail) {
+        q->tail = q->head;
+        pre = NULL;
+        tmp = q->head;
+        nxt = q->head->next;
+        while (nxt) {
+            tmp->next = pre;
+            pre = tmp;
+            tmp = nxt;
+            nxt = nxt->next;
+        }
+        tmp->next = pre;
+        // pre = tmp;
+        // tmp = nxt;
+        q->head = tmp;
+    }
 }
 
 /*
@@ -144,4 +199,35 @@ void q_sort(queue_t *q)
 {
     /* TODO: You need to write the code for this function */
     /* TODO: Remove the above comment when you are about to implement. */
+
+    ////////////////////
+    // Insertion Sort //
+    ////////////////////
+    list_ele_t *a, *b, *c, *d;
+    list_ele_t dummy;
+    if (q && q->head) {
+        a = q->head;
+        dummy.value = 0;
+        dummy.next = q->head;
+        while (a->next) {
+            if (strcasecmp(a->next->value, a->value) < 0) {
+                b = a->next;
+                c = dummy.next;
+                d = &dummy;
+                while (strcasecmp(b->value, c->value) > 0) {
+                    d = d->next;
+                    c = c->next;
+                }
+                a->next = b->next;
+                d->next = b;
+                b->next = c;
+            } else {
+                a = a->next;
+            }
+
+            if (a)  // trace-05-perf
+                q->tail = a;
+        }
+        q->head = dummy.next;
+    }
 }
